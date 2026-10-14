@@ -155,7 +155,9 @@ async function loadConfig() {
       <span class="pill ${ready >= s.count ? 'ok' : 'bad'}">${ready}/${s.count} templates</span></label>`;
   }).join('');
   $('#stores').onchange = estimate;
+  const tstore = $('#tstore').value;  // keep the chosen store when the list is rebuilt
   $('#tstore').innerHTML = CFG.stores.map(s => `<option>${esc(s.code)}</option>`).join('');
+  if (CFG.stores.some(s => s.code === tstore)) $('#tstore').value = tstore;
   estimate();
 }
 
