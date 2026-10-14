@@ -78,11 +78,11 @@ def test_order_corners_fixes_click_order():
         assert order_corners(clicked) == want
 
 
-def test_fit_design_trims_border_and_matches_mat_shape():
+def test_fit_design_trims_border():
     from app.render import fit_design
     design = Image.new("RGBA", (2000, 2000), (0, 0, 0, 0))
     design.paste((255, 0, 0, 255), (100, 700, 1900, 1300))  # 1800x600 artwork in a square file
-    out = fit_design(design, [(0, 0), (300, 0), (300, 200), (0, 200)], margin=0.05)
-    assert abs(out.width / out.height - 1.5) < 0.01
+    out = fit_design(design, margin=0.02)
+    assert abs(out.width / out.height - 3) < 0.01
     bbox = out.getchannel("A").getbbox()
-    assert (bbox[2] - bbox[0]) / out.width > 0.89  # artwork fills the width minus the margins
+    assert (bbox[2] - bbox[0]) / out.width > 0.95 and (bbox[3] - bbox[1]) / out.height > 0.95

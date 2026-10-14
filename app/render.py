@@ -44,25 +44,19 @@ def warp(design: Image.Image, corners: Sequence[Point], size: Tuple[int, int]) -
                                             Image.Resampling.BICUBIC).convert("RGBA")
 
 
-DESIGN_MARGIN = 0.05  # empty space left on each side of the mat, as a fraction of its width/height
+DESIGN_MARGIN = 0.02  # thin gap left on each side of the mat, as a fraction of its width/height
 
 
-def fit_design(design: Image.Image, corners: Sequence[Point], margin: float = DESIGN_MARGIN) -> Image.Image:
-    """Trim the design's empty transparent border, then centre it on a canvas shaped like the mat,
-    so the artwork fills the mat (minus `margin`) without being stretched."""
+def fit_design(design: Image.Image, margin: float = DESIGN_MARGIN) -> Image.Image:
+    """Trim the design's empty transparent border and add a thin even margin. The warp then stretches
+    the result edge to edge across the mat, so the artwork covers the whole mat."""
     box = design.getchannel("A").point(lambda a: 255 if a > 16 else 0).getbbox()
     if box:
         design = design.crop(box)
-    c = np.array(corners, float)
-    mat_w = (np.linalg.norm(c[1] - c[0]) + np.linalg.norm(c[2] - c[3])) / 2
-    mat_h = (np.linalg.norm(c[3] - c[0]) + np.linalg.norm(c[2] - c[1])) / 2
-    mat_aspect = mat_w / max(mat_h, 1e-6)
     w, h = design.size
-    # Smallest canvas with the mat's aspect that holds the design plus the margin on every side.
-    cw = max(w / (1 - 2 * margin), h / (1 - 2 * margin) * mat_aspect)
-    ch = cw / mat_aspect
-    canvas = Image.new("RGBA", (round(cw), round(ch)), (0, 0, 0, 0))
-    canvas.paste(design, (round((cw - w) / 2), round((ch - h) / 2)))
+    cw, ch = round(w / (1 - 2 * margin)), round(h / (1 - 2 * margin))
+    canvas = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    canvas.paste(design, ((cw - w) // 2, (ch - h) // 2))
     return canvas
 
 
@@ -104,7 +98,7 @@ def _render_corners(tpl: Image.Image, design: Image.Image, t: Template) -> Image
 def render(template: Template, design: Image.Image, size: Tuple[int, int]) -> Image.Image:
     if template.status != "ready":
         raise ValueError(f"Template {template.key} needs its 4 mat corners set (Templates tab)")
-    design = fit_design(design.convert("RGBA"), template.calibration.corners)
+    design = fit_design(design.convert("RGBA"))
     with Image.open(template.path) as tpl:
         tpl.load()
         if template.calibration.mode == "window":
