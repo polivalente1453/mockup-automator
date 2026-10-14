@@ -30,6 +30,7 @@ Put the project folder anywhere, then:
 | Start (double-click) | `start.command` | `start.bat` |
 | Start (terminal) | `./start.sh` | `start.bat` |
 | Add the `mockup` command | `./start.sh install` | `start.bat install` |
+| Create mockups (terminal, asks SKUs/stores) | `./create-mockups.sh` | — |
 
 The first start installs everything into `.venv/` inside the project folder (about a minute) and opens
 http://127.0.0.1:8765. Running it again while it's already open just brings the page back up.
