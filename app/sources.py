@@ -91,16 +91,27 @@ class DriveSource:
     def design_options(self, sku: str) -> List[dict]:
         return [{"id": f["id"], "name": f["name"]} for f in self._images(sku)]
 
-    def fetch_design(self, sku: str, choice: Optional[str], log: Log) -> Path:
-        files = self._images(sku)
-        f = next((x for x in files if x["id"] == choice), files[0])
-        if len(files) > 1 and not choice:
-            log(f"{sku}: {len(files)} designs in folder, using '{f['name']}' ({self.s.design_pick})")
+    def _download(self, sku: str, f: dict, log: Log) -> Path:
         dest = self.s.cache_dir / "designs" / sku / f"{f['id']}{Path(f['name']).suffix.lower()}"
         if not dest.exists():
             log(f"{sku}: downloading {f['name']}")
             self.client.download(f["id"], dest)
         return dest
+
+    def fetch_design(self, sku: str, choice: Optional[str], log: Log) -> Path:
+        files = self._images(sku)
+        picked = next((x for x in files if x["id"] == choice), None)
+        if picked or len(files) == 1:
+            return self._download(sku, picked or files[0], log)
+        # Folders often hold finished mockup photos next to the design. The printable design is the
+        # one with a transparent background, so prefer that; otherwise fall back to design_pick order.
+        for f in files:
+            path = self._download(sku, f, log)
+            if has_transparency(path):
+                log(f"{sku}: {len(files)} images in folder, using '{f['name']}' (transparent background)")
+                return path
+        log(f"{sku}: {len(files)} images in folder, none transparent, using '{files[0]['name']}' ({self.s.design_pick})")
+        return self._download(sku, files[0], log)
 
     def publish(self, sku: str, store: Store, files: List[Path], log: Log) -> None:
         if not store.output_folder_id:
@@ -110,6 +121,15 @@ class DriveSource:
         for p in files:
             self.client.upload(p, folder)
         log(f"{sku}/{store.code}: uploaded {len(files)} files to Drive")
+
+
+def has_transparency(path: Path) -> bool:
+    """True if the image has a real see-through area (not just an all-opaque alpha channel)."""
+    from PIL import Image
+    with Image.open(path) as im:
+        if im.mode in ("RGBA", "LA", "PA") or "transparency" in im.info:
+            return im.convert("RGBA").getchannel("A").getextrema()[0] < 128
+    return False
 
 
 def make_source(settings: Settings, name: str):

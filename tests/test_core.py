@@ -57,3 +57,15 @@ def test_warp_fills_quad():
     out = np.asarray(warp(design, [(50, 50), (150, 50), (150, 110), (50, 110)], (200, 200)))
     assert out[80, 100, 3] == 255 and out[80, 100, 0] == 255
     assert out[10, 10, 3] == 0
+
+
+def test_has_transparency_prefers_cutout_designs(tmp_path):
+    from app.sources import has_transparency
+    cutout = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    opaque_rgba = Image.new("RGBA", (10, 10), (255, 0, 0, 255))
+    photo = Image.new("RGB", (10, 10), (255, 0, 0))
+    for name, im in (("c.png", cutout), ("o.png", opaque_rgba), ("p.png", photo)):
+        im.save(tmp_path / name)
+    assert has_transparency(tmp_path / "c.png")
+    assert not has_transparency(tmp_path / "o.png")
+    assert not has_transparency(tmp_path / "p.png")
