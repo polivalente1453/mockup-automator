@@ -36,3 +36,27 @@ stores:
     count: 10
     order: shuffle
     always_first: []
+
+  - code: ADS
+    name: Ahmet Doormat Store
+    templates_folder_id: 18n8mp8ZuHYoBvTj58VMgod91cyNRltTp   # Bos Mockuplar/Ahmet Doormat Store
+    output_folder_id: 11IOgnEy-zFv_NmrMuS--ur2Ru1R0OqvK      # Mockups/Ahmet Doormat Store
+    count: 10
+    order: shuffle
+    always_first: []
+
+  - code: EDS
+    name: Esra Doormat Store
+    templates_folder_id: 1R1r9c91gQFDPmReFA0aUDJvlDj2GFEux   # Bos Mockuplar/Esra Doormat Store
+    output_folder_id: 1zmxqPZipcuX2Har8n3korhP_M_fgyG9C      # Mockups/Esra Doormat Store
+    count: 10
+    order: shuffle
+    always_first: []
+
+  - code: EMS
+    name: Eagle Mehmet Store
+    templates_folder_id: 1nbt4eGg62ecS1qNO5qfBbEDhdcjmhQXI   # Bos Mockuplar/Eagle Mehmet Store
+    output_folder_id: 16D_AEh0ywJ5TpHY4LAUeKAA9CTs7bUqv      # Mockups/Eagle Mehmet Store
+    count: 10
+    order: shuffle
+    always_first: []
