@@ -178,7 +178,8 @@ async function loadConfig() {
   }).join('');
   $('#stores').onchange = estimate;
   const tstore = $('#tstore').value;  // keep the chosen store when the list is rebuilt
-  $('#tstore').innerHTML = CFG.stores.map(s => `<option>${esc(s.code)}</option>`).join('');
+  // value stays the CODE (everything keys on it); the label shows the full store name
+  $('#tstore').innerHTML = CFG.stores.map(s => `<option value="${esc(s.code)}">${esc(s.code)} — ${esc(s.name)}</option>`).join('');
   if (CFG.stores.some(s => s.code === tstore)) $('#tstore').value = tstore;
   estimate();
 }
