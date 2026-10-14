@@ -61,6 +61,36 @@ def config():
     })
 
 
+@app.get("/api/stores/discover")
+def stores_discover():
+    """Folders under "Bos Mockuplar" in Drive not yet configured as a store."""
+    s = load_settings()
+    try:
+        from .sources import drive_client
+        from .stores_admin import discover_stores
+        return jsonify(discover_stores(s, drive_client(s)))
+    except Exception as e:
+        return err(e)
+
+
+@app.post("/api/stores")
+def stores_add():
+    """Wire a Bos Mockuplar folder up as a new store (creates the matching
+    Mockups output folder and appends to settings.yaml — no restart needed)."""
+    s = load_settings()
+    body = request.get_json(force=True)
+    tpl_id = str(body.get("templates_folder_id") or "").strip()
+    if not tpl_id:
+        return err("templates_folder_id is required")
+    try:
+        from .sources import drive_client
+        from .stores_admin import add_store
+        return jsonify(add_store(s, drive_client(s), tpl_id,
+                                 name=body.get("name"), code=body.get("code")))
+    except Exception as e:
+        return err(e)
+
+
 @app.get("/api/skus")
 def skus():
     s = load_settings()

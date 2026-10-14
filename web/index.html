@@ -26,6 +26,13 @@
   .skus label, .stores label { display:flex; gap:6px; align-items:center; padding:3px 6px; border-radius:5px; cursor:pointer; }
   .skus label:hover { background:var(--bg); }
   .stores { display:flex; flex-direction:column; gap:4px; }
+  .addstore-row { display:flex; align-items:center; gap:8px; padding:4px 0; }
+  .addstore-row span { flex:1; }
+  .addstore-row button { font:inherit; font-size:12.5px; padding:4px 10px; border-radius:6px; cursor:pointer; border:1px solid var(--line); background:var(--card); }
+  #addstorebtn { font:inherit; font-size:12.5px; padding:4px 10px; border-radius:6px; cursor:pointer; border:1px dashed var(--line); background:transparent; color:var(--muted); }
+  #addstorebtn:hover { color:var(--ink); border-color:var(--ink); }
+  #addstorelist { margin-top:8px; font-size:13px; }
+  .bad-text { color:#b3261e; }
   .muted { color:var(--muted); }
   .bar { height:8px; background:var(--bg); border-radius:4px; overflow:hidden; margin:10px 0; }
   .bar div { height:100%; background:var(--accent); width:0; transition:width .3s; }
@@ -79,6 +86,10 @@
       <div class="card" style="min-width:280px">
         <h2>2. Stores</h2>
         <div class="stores" id="stores"></div>
+        <div style="margin-top:10px">
+          <button id="addstorebtn" type="button">+ Add store</button>
+          <div id="addstorelist" hidden></div>
+        </div>
         <h2 style="margin-top:16px">3. Run</h2>
         <label style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox" id="upload" checked> Upload to Drive Mockups folders</label>
         <button class="primary" id="go">Generate mockups</button>
@@ -171,6 +182,37 @@ async function loadConfig() {
   if (CFG.stores.some(s => s.code === tstore)) $('#tstore').value = tstore;
   estimate();
 }
+
+// ── Add store: list unconfigured "Bos Mockuplar" folders, one click wires one up ──
+$('#addstorebtn').onclick = async () => {
+  const box = $('#addstorelist');
+  box.hidden = false;
+  box.innerHTML = '<span class="muted">Looking for new store folders in Drive…</span>';
+  try {
+    const d = await api('/api/stores/discover');
+    if (!d.folders.length) {
+      box.innerHTML = '<span class="muted">No new folders found. Create the store’s folder inside <b>Bos Mockuplar</b> in Drive (with its blank mockups), then click again.</span>';
+      return;
+    }
+    box.innerHTML = d.folders.map(f =>
+      `<div class="addstore-row"><span>${esc(f.name)}</span><button type="button" data-id="${esc(f.id)}">Add</button></div>`
+    ).join('') + '<div class="muted" id="addstoremsg"></div>';
+    box.querySelectorAll('button').forEach(b => b.onclick = async () => {
+      b.disabled = true; b.textContent = 'Adding…';
+      try {
+        const st = await api('/api/stores', {method:'POST', body: JSON.stringify({templates_folder_id: b.dataset.id})});
+        box.hidden = true;
+        await loadConfig();
+        $('#estimate').textContent = `Store ${st.code} (${st.name}) added — upload blanks to its Bos Mockuplar folder, then calibrate it on the Templates tab.`;
+      } catch (e) {
+        b.disabled = false; b.textContent = 'Add';
+        $('#addstoremsg').innerHTML = `<span class="bad-text">${esc(e.message)}</span>`;
+      }
+    });
+  } catch (e) {
+    box.innerHTML = `<span class="bad-text">${esc(e.message)}</span>`;
+  }
+};
 
 async function loadSkus() {
   $('#skus').innerHTML = '<span class="muted">Loading…</span>';
