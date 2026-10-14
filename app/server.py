@@ -1,6 +1,8 @@
 """Local web UI: http://127.0.0.1:8765"""
 from __future__ import annotations
 
+import hmac
+import os
 from dataclasses import asdict
 
 from flask import Flask, abort, jsonify, request, send_from_directory
@@ -14,6 +16,24 @@ from .drive import TOKEN_FILE
 
 app = Flask(__name__, static_folder=None)
 runner = JobRunner(load_settings)
+
+# Optional bearer-token gate for hosted deployments (NESA admin proxy).
+# When MOCKUP_API_TOKEN is set, EVERY route requires
+# `Authorization: Bearer <token>` — the UI itself is served through the
+# authenticated reverse proxy, so nothing needs to stay public. When the
+# env var is unset (local per-machine use on 127.0.0.1) behavior is
+# unchanged: no auth, same as before.
+API_TOKEN = os.environ.get("MOCKUP_API_TOKEN", "")
+
+
+@app.before_request
+def _require_token():
+    if not API_TOKEN:
+        return None
+    supplied = request.headers.get("Authorization", "")
+    if not hmac.compare_digest(supplied, f"Bearer {API_TOKEN}"):
+        return jsonify({"error": "unauthorized"}), 401
+    return None
 
 
 def err(msg, code=400):
@@ -135,10 +155,13 @@ def preview(store, name):
     return jsonify({"url": f"/files/output/.previews/{store}/{name}.jpg", "sku": sku})
 
 
-def main(host="127.0.0.1", port=8765):
+def main(host=None, port=None):
     import logging
     import flask.cli
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
     flask.cli.show_server_banner = lambda *a, **k: None  # local tool: hide the "development server" banner
-    print(f"Mockup Automator running at http://{host}:{port}")
+    host = host or os.environ.get("HOST", "127.0.0.1")
+    port = int(port or os.environ.get("PORT", 8765))
+    print(f"Mockup Automator running at http://{host}:{port}"
+          + (" (bearer auth ON)" if API_TOKEN else ""))
     app.run(host=host, port=port, threaded=True)

@@ -127,9 +127,20 @@
 
 <script>
 const $ = s => document.querySelector(s);
+// Served either at `/` (local use) or behind a reverse proxy at a sub-path
+// (NESA admin: /api/mockup-automator/). All API + file URLs are prefixed
+// with BASE so both work without configuration.
+const BASE = location.pathname.replace(/\/(index\.html)?$/, '');
 const api = async (url, opts={}) => {
-  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts});
-  const j = await r.json();
+  let r;
+  try {
+    r = await fetch(BASE + url, {headers:{'Content-Type':'application/json'}, ...opts});
+  } catch (e) {
+    throw new Error('Mockup service unreachable — it may be restarting. Try again in a minute.');
+  }
+  let j;
+  try { j = await r.json(); }
+  catch { throw new Error(r.ok ? 'Bad response from service' : `Service error (${r.status})`); }
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 };
@@ -213,7 +224,15 @@ async function follow(id, title, onDone) {
   $('#jobcard').hidden = false; $('#go').disabled = true;
   $('#jobtitle').textContent = title; $('#results').innerHTML = '';
   for (;;) {
-    const j = await api('/api/jobs/' + id);
+    let j;
+    try { j = await api('/api/jobs/' + id); }
+    catch (e) {
+      // Service restarted mid-job (jobs live in memory) or network blip.
+      $('#jobtitle').textContent = `${title} — lost`;
+      $('#log').textContent += '\nLost contact with the service (it may have restarted). ' +
+        'This job is gone — re-submit it. Already-uploaded files are safe in Drive.';
+      $('#go').disabled = false; return;
+    }
     $('#bar').style.width = (j.total ? 100 * j.done / j.total : 0) + '%';
     $('#log').textContent = j.log.join('\n'); $('#log').scrollTop = 1e9;
     $('#jobtitle').textContent = `${title} — ${j.status} (${j.done}/${j.total || '?'})`;
@@ -229,7 +248,7 @@ function showResults(j) {
   for (const o of j.outputs) (groups[o.sku + ' · ' + o.store] ||= []).push(o);
   $('#results').innerHTML = (j.errors.length ? `<p class="err">${j.errors.map(esc).join('<br>')}</p>` : '') +
     Object.entries(groups).map(([g, items]) => `<h3>${esc(g)}</h3><div class="grid">${items.map(o =>
-      `<figure><a href="/files/output/${encodeURI(o.path)}" target="_blank"><img loading="lazy" src="/files/output/.thumbs/${encodeURI(o.path)}?t=${j.finished}"></a>
+      `<figure><a href="${BASE}/files/output/${encodeURI(o.path)}" target="_blank"><img loading="lazy" src="${BASE}/files/output/.thumbs/${encodeURI(o.path)}?t=${j.finished}"></a>
        <figcaption>${esc(o.file)} · ${esc(o.template)}</figcaption></figure>`).join('')}</div>`).join('');
 }
 
@@ -246,7 +265,7 @@ async function renderTemplates() {
   await loadConfig();
   const st = CFG.stores.find(s => s.code === $('#tstore').value) || CFG.stores[0];
   $('#tpls').innerHTML = st.templates.length ? st.templates.map(t => `
-    <div class="tpl" data-name="${esc(t.name)}"><img loading="lazy" src="/files/template/${esc(st.code)}/${encodeURIComponent(t.name)}">
+    <div class="tpl" data-name="${esc(t.name)}"><img loading="lazy" src="${BASE}/files/template/${esc(st.code)}/${encodeURIComponent(t.name)}">
     <div><span>${esc(t.name)}</span><span class="pill ${t.status === 'ready' ? 'ok' : 'bad'}">${t.status === 'ready' ? t.mode : 'set corners'}</span></div></div>`).join('')
     : '<p class="muted">No templates yet. Click <b>Sync from Drive</b>.</p>';
   document.querySelectorAll('.tpl').forEach(el => el.onclick = () => openEditor(st.code, st.templates.find(t => t.name === el.dataset.name)));
@@ -259,7 +278,7 @@ function openEditor(store, t) {
   $('#edtitle').textContent = `${store} / ${t.name}`;
   $('#edmode').value = t.mode; $('#edshade').value = t.shading; $('#edtex').value = t.texture;
   $('#edimg').onload = drawPts;
-  $('#edimg').src = `/files/template/${store}/${encodeURIComponent(t.name)}`;
+  $('#edimg').src = `${BASE}/files/template/${store}/${encodeURIComponent(t.name)}`;
 }
 
 function scale() { const im = $('#edimg'); return im.clientWidth / (im.naturalWidth || 1); }
@@ -302,12 +321,15 @@ $('#edprev').onclick = async () => {
     if (pts.length === 4) await $('#edsave').onclick();
     const r = await api(`/api/templates/${edT.store}/${encodeURIComponent(edT.name)}/preview`, {method:'POST',
       body: JSON.stringify({source: $('#source').value})});
-    $('#prev').src = r.url + '?t=' + Date.now(); $('#prev').hidden = false;
+    $('#prev').src = BASE + r.url + '?t=' + Date.now(); $('#prev').hidden = false;
     $('#edmsg').textContent = `Preview with SKU ${r.sku}`;
   } catch (e) { $('#edmsg').textContent = e.message; }
 };
 
-loadConfig().then(loadSkus);
+loadConfig().then(loadSkus).catch(e => {
+  $('#banner').innerHTML = `<div class="banner"><b>Mockup service unreachable.</b> ${esc(e.message)}</div>`;
+  $('#status').textContent = 'offline';
+});
 </script>
 </body>
 </html>

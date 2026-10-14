@@ -1,0 +1,13 @@
+.git
+.venv
+.cache
+.pytest_cache
+output
+templates
+designs
+config
+tests
+*.md
+start.*
+create-mockups.sh
+launcher.py
