@@ -9,6 +9,7 @@ A template places the design in one of two ways:
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -66,7 +67,19 @@ def _cache_file(settings: Settings, path: Path) -> Path:
     return settings.cache_dir / "detect" / path.parent.name / f"{path.name}.{int(st.st_mtime)}.{st.st_size}.json"
 
 
+def order_corners(corners: Optional[list]) -> Optional[list]:
+    """Put 4 clicked corners in TL, TR, BR, BL order, whatever order they were clicked in."""
+    if not corners or len(corners) != 4:
+        return corners
+    cx = sum(p[0] for p in corners) / 4
+    cy = sum(p[1] for p in corners) / 4
+    pts = sorted(corners, key=lambda p: math.atan2(p[1] - cy, p[0] - cx))  # clockwise on screen
+    start = min(range(4), key=lambda i: pts[i][0] + pts[i][1])
+    return [list(p) for p in pts[start:] + pts[:start]]
+
+
 def save_calibration(store: str, name: str, cal: Calibration) -> None:
+    cal.corners = order_corners(cal.corners)
     f = calibration_file(store, name)
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps(asdict(cal), indent=2))
@@ -98,6 +111,7 @@ def load_template(settings: Settings, store: str, path: Path) -> Template:
         data = json.loads(cal_f.read_text())
         cal = Calibration(**{**asdict(Calibration()), **data})
         cal.base_color = tuple(cal.base_color)
+        cal.corners = order_corners(cal.corners)
     else:
         cache = _cache_file(settings, path)
         if cache.exists():

@@ -69,3 +69,10 @@ def test_has_transparency_prefers_cutout_designs(tmp_path):
     assert has_transparency(tmp_path / "c.png")
     assert not has_transparency(tmp_path / "o.png")
     assert not has_transparency(tmp_path / "p.png")
+
+
+def test_order_corners_fixes_click_order():
+    from app.templates import order_corners
+    want = [[100, 100], [400, 110], [420, 300], [90, 290]]
+    for clicked in (want, [want[0], want[3], want[2], want[1]], [want[2], want[0], want[3], want[1]]):
+        assert order_corners(clicked) == want
