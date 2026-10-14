@@ -1,0 +1,38 @@
+# Mockup Automator settings. Shared by the whole team (commit this file).
+# Everything runs locally: image rendering uses Pillow/numpy, Drive uses the free Google Drive API.
+
+output:
+  width: 4200
+  height: 2800
+  quality: 92        # JPEG quality
+  dpi: 300
+
+# Where local files live (relative to the project folder)
+paths:
+  output_dir: output          # rendered mockups: output/<SKU>/<STORE CODE>/
+  templates_dir: templates    # blank mockups synced from Drive: templates/<STORE CODE>/
+  designs_dir: designs        # offline designs: designs/<SKU>.png (used when source = local)
+  cache_dir: .cache
+
+drive:
+  credentials_file: config/credentials.json   # OAuth "Desktop app" client from Google Cloud Console
+  designs_folder_id: 1aPN5b5FXrgQiK3xXGuaz_IQB9lOCrvCa   # Doormat Designs/<SKU>/*.png
+  # When a SKU folder holds several images: newest | largest
+  design_pick: newest
+
+stores:
+  - code: HSH
+    name: Happy Step Home
+    templates_folder_id: 102Nh_KGmcUpZUy0wCAxGCGw1fME9Mkng   # Bos Mockuplar/Happy Step Home
+    output_folder_id: 1Oj6ErZXceGuwMGZUluX_BjNPzgYOEuvm      # Mockups/Happy Step Home
+    count: 10            # mockups per SKU
+    order: shuffle       # shuffle = different combination per SKU (stable for the same SKU); fixed = template order
+    always_first: []     # optional template names that are always image #1, #2... e.g. ["1.png"]
+
+  - code: SNS
+    name: Signature Nesa Studio
+    templates_folder_id: 146MshBJV15sO5mqU3BHn_GyDApZKQp5i   # Bos Mockuplar/Signature Nesa
+    output_folder_id: 1ppSPpg0p_8ZIdtmMfUNaV-cy1e-f-joY      # Mockups/SignatureNesaStudio
+    count: 10
+    order: shuffle
+    always_first: []

@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+output/
+.cache/
+config/credentials.json
+config/token.json
+.DS_Store
+templates/
+designs/
+config/calibration/*/demo-*
+.claude/
+.pytest_cache/

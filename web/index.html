@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup Automator</title>
+<style>
+  :root { --bg:#f6f4f0; --card:#fff; --ink:#1d1b18; --muted:#6f6a62; --line:#e3ded5; --accent:#2f6b4f; --warn:#a4561b; --err:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  header { display:flex; align-items:center; gap:24px; padding:14px 24px; background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+  header h1 { font-size:16px; margin:0; }
+  nav button { background:none; border:0; padding:6px 10px; font:inherit; color:var(--muted); cursor:pointer; border-radius:6px; }
+  nav button.on { color:var(--ink); background:var(--bg); font-weight:600; }
+  #status { margin-left:auto; color:var(--muted); font-size:13px; }
+  main { padding:20px 24px; max-width:1400px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .card h2 { font-size:14px; margin:0 0 12px; }
+  .row { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; }
+  .grow { flex:1; min-width:280px; }
+  button.primary, button.btn { font:inherit; padding:8px 14px; border-radius:7px; cursor:pointer; border:1px solid var(--line); background:var(--card); }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+  button:disabled { opacity:.5; cursor:default; }
+  input[type=text], select { font:inherit; padding:7px 9px; border:1px solid var(--line); border-radius:7px; background:#fff; }
+  .skus { max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:7px; padding:6px; display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:2px; }
+  .skus label, .stores label { display:flex; gap:6px; align-items:center; padding:3px 6px; border-radius:5px; cursor:pointer; }
+  .skus label:hover { background:var(--bg); }
+  .stores { display:flex; flex-direction:column; gap:4px; }
+  .muted { color:var(--muted); }
+  .bar { height:8px; background:var(--bg); border-radius:4px; overflow:hidden; margin:10px 0; }
+  .bar div { height:100%; background:var(--accent); width:0; transition:width .3s; }
+  pre.log { background:#1d1b18; color:#e9e4da; padding:10px; border-radius:7px; max-height:220px; overflow:auto; font-size:12px; margin:0; white-space:pre-wrap; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+  .grid figure { margin:0; } .grid img { width:100%; border-radius:6px; display:block; border:1px solid var(--line); }
+  .grid figcaption { font-size:12px; color:var(--muted); margin-top:3px; }
+  h3 { font-size:13px; margin:18px 0 8px; }
+  .pill { font-size:11px; padding:2px 7px; border-radius:10px; background:var(--bg); color:var(--muted); }
+  .pill.ok { background:#e2efe7; color:var(--accent); } .pill.bad { background:#f8e6d6; color:var(--warn); }
+  .tpl-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+  .tpl { border:1px solid var(--line); border-radius:8px; padding:6px; cursor:pointer; background:#fff; }
+  .tpl.sel { outline:2px solid var(--accent); }
+  .tpl img { width:100%; aspect-ratio:3/2; object-fit:cover; border-radius:5px; display:block; background:var(--bg); }
+  .tpl div { display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:12px; }
+  #editor { position:relative; user-select:none; }
+  #editor img { width:100%; display:block; border-radius:6px; }
+  #editor svg { position:absolute; inset:0; width:100%; height:100%; }
+  .err { color:var(--err); }
+  .banner { background:#fff6e8; border:1px solid #f0d9b5; padding:10px 14px; border-radius:8px; margin-bottom:16px; }
+  code { background:var(--bg); padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mockup Automator</h1>
+  <nav><button data-tab="generate" class="on">Generate</button><button data-tab="templates">Templates</button></nav>
+  <span id="status"></span>
+</header>
+<main>
+  <div id="banner"></div>
+
+  <section id="tab-generate">
+    <div class="row">
+      <div class="card grow">
+        <h2>1. SKUs</h2>
+        <div class="row" style="gap:8px;margin-bottom:8px">
+          <select id="source">
+            <option value="drive">Google Drive (Doormat Designs)</option>
+            <option value="local">Local folder (designs/)</option>
+          </select>
+          <input id="filter" type="text" placeholder="Filter, or paste SKUs: 334, 335…" style="flex:1">
+          <button class="btn" id="reload">Reload</button>
+        </div>
+        <div class="row" style="gap:12px;margin-bottom:6px">
+          <a href="#" id="all">Select shown</a><a href="#" id="none">Clear</a>
+          <span class="muted" id="skucount"></span>
+        </div>
+        <div class="skus" id="skus"><span class="muted">Loading…</span></div>
+      </div>
+      <div class="card" style="min-width:280px">
+        <h2>2. Stores</h2>
+        <div class="stores" id="stores"></div>
+        <h2 style="margin-top:16px">3. Run</h2>
+        <label style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox" id="upload" checked> Upload to Drive Mockups folders</label>
+        <button class="primary" id="go">Generate mockups</button>
+        <p class="muted" id="estimate" style="margin:8px 0 0"></p>
+      </div>
+    </div>
+    <div class="card" id="jobcard" hidden>
+      <h2 id="jobtitle">Job</h2>
+      <div class="bar"><div id="bar"></div></div>
+      <pre class="log" id="log"></pre>
+      <div id="results"></div>
+    </div>
+  </section>
+
+  <section id="tab-templates" hidden>
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <h2 style="margin:0">Blank templates</h2>
+        <select id="tstore"></select>
+        <button class="btn" id="sync">Sync from Drive</button>
+        <span class="muted">Templates with a transparent mat area are detected automatically. Others need their 4 corners clicked once.</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="card grow" style="flex:1"><div class="tpl-list" id="tpls"></div></div>
+      <div class="card" style="flex:2;min-width:420px" id="edcard" hidden>
+        <h2 id="edtitle"></h2>
+        <p class="muted" style="margin-top:0">Click the mat corners in order: <b>top-left → top-right → bottom-right → bottom-left</b>. Drag a dot to adjust.</p>
+        <div id="editor"><img id="edimg" alt=""><svg id="edsvg"></svg></div>
+        <div class="row" style="margin-top:10px;align-items:center">
+          <label>Mode <select id="edmode"><option value="corners">corners (opaque photo)</option><option value="window">window (transparent hole)</option></select></label>
+          <label>Lighting <input type="range" id="edshade" min="0" max="1" step="0.05"></label>
+          <label>Texture <input type="range" id="edtex" min="0" max="1" step="0.05"></label>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="edreset">Reset corners</button>
+          <button class="primary" id="edsave">Save</button>
+          <button class="btn" id="edprev">Preview with a design</button>
+          <span id="edmsg" class="muted"></span>
+        </div>
+        <img id="prev" style="width:100%;margin-top:12px;border-radius:6px" hidden alt="preview">
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = async (url, opts={}) => {
+  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let CFG = null, SKUS = [], picked = new Set();
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  for (const t of ['generate','templates']) $('#tab-'+t).hidden = b.dataset.tab !== t;
+  if (b.dataset.tab === 'templates') renderTemplates();
+});
+
+async function loadConfig() {
+  CFG = await api('/api/config');
+  const d = CFG.drive;
+  $('#status').textContent = `${CFG.output.width}×${CFG.output.height} · Drive: ${d.signed_in ? 'signed in' : d.credentials ? 'not signed in yet' : 'not set up'}`;
+  $('#banner').innerHTML = d.credentials ? '' :
+    `<div class="banner">Google Drive isn't set up on this machine yet. Put the OAuth file at <code>config/credentials.json</code> (see README), or use the <b>Local folder</b> source to try the tool.</div>`;
+  if (!d.credentials) $('#source').value = 'local';
+  $('#stores').innerHTML = CFG.stores.map(s => {
+    const ready = s.templates.filter(t => t.status === 'ready').length;
+    return `<label><input type="checkbox" value="${esc(s.code)}" checked> <b>${esc(s.code)}</b> ${esc(s.name)}
+      <span class="pill ${ready >= s.count ? 'ok' : 'bad'}">${ready}/${s.count} templates</span></label>`;
+  }).join('');
+  $('#stores').onchange = estimate;
+  $('#tstore').innerHTML = CFG.stores.map(s => `<option>${esc(s.code)}</option>`).join('');
+  estimate();
+}
+
+async function loadSkus() {
+  $('#skus').innerHTML = '<span class="muted">Loading…</span>';
+  try {
+    SKUS = (await api('/api/skus?source=' + $('#source').value)).skus;
+    drawSkus();
+  } catch (e) { $('#skus').innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+
+function shownSkus() {
+  const f = $('#filter').value.trim();
+  if (!f) return SKUS;
+  const parts = f.split(/[\s,;]+/).filter(Boolean);
+  if (parts.length > 1) return SKUS.filter(s => parts.includes(s));
+  return SKUS.filter(s => s.toLowerCase().includes(f.toLowerCase()));
+}
+
+function drawSkus() {
+  const list = shownSkus();
+  $('#skus').innerHTML = list.length ? list.map(s =>
+    `<label><input type="checkbox" value="${esc(s)}" ${picked.has(s) ? 'checked' : ''}> ${esc(s)}</label>`).join('')
+    : '<span class="muted">No SKUs found</span>';
+  $('#skucount').textContent = `${picked.size} selected · ${SKUS.length} total`;
+  estimate();
+}
+
+$('#skus').onchange = e => { e.target.checked ? picked.add(e.target.value) : picked.delete(e.target.value); drawSkus(); };
+$('#filter').oninput = drawSkus;
+$('#all').onclick = e => { e.preventDefault(); shownSkus().forEach(s => picked.add(s)); drawSkus(); };
+$('#none').onclick = e => { e.preventDefault(); picked.clear(); drawSkus(); };
+$('#reload').onclick = loadSkus;
+$('#source').onchange = () => { picked.clear(); loadSkus(); };
+
+const chosenStores = () => [...document.querySelectorAll('#stores input:checked')].map(i => i.value);
+function estimate() {
+  if (!CFG) return;
+  const per = CFG.stores.filter(s => chosenStores().includes(s.code))
+    .reduce((n, s) => n + Math.min(s.count, s.templates.filter(t => t.status === 'ready').length), 0);
+  $('#estimate').textContent = picked.size ? `${picked.size} SKU × ${per} images = ${picked.size * per} mockups` : '';
+}
+
+$('#go').onclick = async () => {
+  try {
+    const job = await api('/api/jobs', {method:'POST', body: JSON.stringify({
+      kind:'render', skus:[...picked], stores: chosenStores(), source: $('#source').value, upload: $('#upload').checked })});
+    follow(job.id, 'Generating mockups');
+  } catch (e) { alert(e.message); }
+};
+
+async function follow(id, title, onDone) {
+  $('#jobcard').hidden = false; $('#go').disabled = true;
+  $('#jobtitle').textContent = title; $('#results').innerHTML = '';
+  for (;;) {
+    const j = await api('/api/jobs/' + id);
+    $('#bar').style.width = (j.total ? 100 * j.done / j.total : 0) + '%';
+    $('#log').textContent = j.log.join('\n'); $('#log').scrollTop = 1e9;
+    $('#jobtitle').textContent = `${title} — ${j.status} (${j.done}/${j.total || '?'})`;
+    if (j.status === 'done' || j.status === 'failed') {
+      $('#go').disabled = false; showResults(j); onDone && onDone(j); return;
+    }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+}
+
+function showResults(j) {
+  const groups = {};
+  for (const o of j.outputs) (groups[o.sku + ' · ' + o.store] ||= []).push(o);
+  $('#results').innerHTML = (j.errors.length ? `<p class="err">${j.errors.map(esc).join('<br>')}</p>` : '') +
+    Object.entries(groups).map(([g, items]) => `<h3>${esc(g)}</h3><div class="grid">${items.map(o =>
+      `<figure><a href="/files/output/${encodeURI(o.path)}" target="_blank"><img loading="lazy" src="/files/output/.thumbs/${encodeURI(o.path)}?t=${j.finished}"></a>
+       <figcaption>${esc(o.file)} · ${esc(o.template)}</figcaption></figure>`).join('')}</div>`).join('');
+}
+
+/* ---------- Templates tab ---------- */
+let edT = null, pts = [];
+$('#tstore').onchange = renderTemplates;
+$('#sync').onclick = async () => {
+  const job = await api('/api/jobs', {method:'POST', body: JSON.stringify({kind:'sync', stores:[$('#tstore').value]})});
+  document.querySelector('nav button[data-tab=generate]').click();
+  follow(job.id, 'Syncing templates from Drive', async () => { await loadConfig(); });
+};
+
+async function renderTemplates() {
+  await loadConfig();
+  const st = CFG.stores.find(s => s.code === $('#tstore').value) || CFG.stores[0];
+  $('#tpls').innerHTML = st.templates.length ? st.templates.map(t => `
+    <div class="tpl" data-name="${esc(t.name)}"><img loading="lazy" src="/files/template/${esc(st.code)}/${encodeURIComponent(t.name)}">
+    <div><span>${esc(t.name)}</span><span class="pill ${t.status === 'ready' ? 'ok' : 'bad'}">${t.status === 'ready' ? t.mode : 'set corners'}</span></div></div>`).join('')
+    : '<p class="muted">No templates yet. Click <b>Sync from Drive</b>.</p>';
+  document.querySelectorAll('.tpl').forEach(el => el.onclick = () => openEditor(st.code, st.templates.find(t => t.name === el.dataset.name)));
+}
+
+function openEditor(store, t) {
+  edT = {store, ...t}; pts = (t.corners || []).map(p => [...p]);
+  document.querySelectorAll('.tpl').forEach(el => el.classList.toggle('sel', el.dataset.name === t.name));
+  $('#edcard').hidden = false; $('#prev').hidden = true; $('#edmsg').textContent = '';
+  $('#edtitle').textContent = `${store} / ${t.name}`;
+  $('#edmode').value = t.mode; $('#edshade').value = t.shading; $('#edtex').value = t.texture;
+  $('#edimg').onload = drawPts;
+  $('#edimg').src = `/files/template/${store}/${encodeURIComponent(t.name)}`;
+}
+
+function scale() { const im = $('#edimg'); return im.clientWidth / (im.naturalWidth || 1); }
+function drawPts() {
+  const im = $('#edimg'), k = scale(), svg = $('#edsvg');
+  svg.setAttribute('viewBox', `0 0 ${im.clientWidth} ${im.clientHeight}`);
+  const P = pts.map(([x, y]) => [x * k, y * k]);
+  svg.innerHTML = (P.length > 1 ? `<polygon points="${P.map(p => p.join(',')).join(' ')}" fill="rgba(47,107,79,.18)" stroke="#2f6b4f" stroke-width="2"/>` : '') +
+    P.map(([x, y], i) => `<circle data-i="${i}" cx="${x}" cy="${y}" r="7" fill="#fff" stroke="#2f6b4f" stroke-width="3" style="cursor:move"/>
+      <text x="${x + 10}" y="${y - 10}" font-size="12" fill="#2f6b4f" font-weight="700">${['TL','TR','BR','BL'][i]}</text>`).join('');
+}
+window.addEventListener('resize', () => edT && drawPts());
+
+let drag = null;
+$('#edsvg').addEventListener('mousedown', e => {
+  const r = e.currentTarget.getBoundingClientRect(), k = scale();
+  const x = (e.clientX - r.left) / k, y = (e.clientY - r.top) / k;
+  if (e.target.dataset.i !== undefined) { drag = +e.target.dataset.i; return; }
+  if (pts.length < 4) { pts.push([Math.round(x), Math.round(y)]); drawPts(); }
+});
+window.addEventListener('mousemove', e => {
+  if (drag === null) return;
+  const r = $('#edsvg').getBoundingClientRect(), k = scale();
+  pts[drag] = [Math.round((e.clientX - r.left) / k), Math.round((e.clientY - r.top) / k)]; drawPts();
+});
+window.addEventListener('mouseup', () => drag = null);
+$('#edreset').onclick = () => { pts = []; drawPts(); };
+
+$('#edsave').onclick = async () => {
+  if (pts.length !== 4) { $('#edmsg').textContent = 'Click all 4 corners first.'; return; }
+  try {
+    await api(`/api/templates/${edT.store}/${encodeURIComponent(edT.name)}`, {method:'PUT', body: JSON.stringify({
+      corners: pts, mode: $('#edmode').value, shading: +$('#edshade').value, texture: +$('#edtex').value })});
+    $('#edmsg').textContent = 'Saved.'; renderTemplates();
+  } catch (e) { $('#edmsg').textContent = e.message; }
+};
+$('#edprev').onclick = async () => {
+  $('#edmsg').textContent = 'Rendering…';
+  try {
+    if (pts.length === 4) await $('#edsave').onclick();
+    const r = await api(`/api/templates/${edT.store}/${encodeURIComponent(edT.name)}/preview`, {method:'POST',
+      body: JSON.stringify({source: $('#source').value})});
+    $('#prev').src = r.url + '?t=' + Date.now(); $('#prev').hidden = false;
+    $('#edmsg').textContent = `Preview with SKU ${r.sku}`;
+  } catch (e) { $('#edmsg').textContent = e.message; }
+};
+
+loadConfig().then(loadSkus);
+</script>
+</body>
+</html>
