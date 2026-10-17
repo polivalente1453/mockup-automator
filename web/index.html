@@ -21,6 +21,8 @@
   button.primary, button.btn { font:inherit; padding:8px 14px; border-radius:7px; cursor:pointer; border:1px solid var(--line); background:var(--card); }
   button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
   button:disabled { opacity:.5; cursor:default; }
+  button.danger { color:var(--err); border-color:#e7c6c4; margin-left:auto; }
+  button.danger:hover:not(:disabled) { background:#fdf3f2; }
   input[type=text], select { font:inherit; padding:7px 9px; border:1px solid var(--line); border-radius:7px; background:#fff; }
   .skus { max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:7px; padding:6px; display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:2px; }
   .skus label, .stores label { display:flex; gap:6px; align-items:center; padding:3px 6px; border-radius:5px; cursor:pointer; }
@@ -129,6 +131,7 @@
           <button class="primary" id="edsave">Save</button>
           <button class="btn" id="edprev">Preview with a design</button>
           <span id="edmsg" class="muted"></span>
+          <button class="btn danger" id="eddel">Delete</button>
         </div>
         <img id="prev" style="width:100%;margin-top:12px;border-radius:6px" hidden alt="preview">
       </div>
@@ -357,6 +360,16 @@ $('#edsave').onclick = async () => {
       corners: pts, mode: $('#edmode').value, shading: +$('#edshade').value, texture: +$('#edtex').value })});
     $('#edmsg').textContent = 'Saved.'; renderTemplates();
   } catch (e) { $('#edmsg').textContent = e.message; }
+};
+$('#eddel').onclick = async () => {
+  if (!confirm(`Delete ${edT.store} / ${edT.name}?\n\nThis also moves the blank in Drive (Bos Mockuplar) to the Drive trash so it won't come back on the next sync. You can restore it from the Drive trash for 30 days.`)) return;
+  const b = $('#eddel'); b.disabled = true; $('#edmsg').textContent = 'Deleting…';
+  try {
+    await api(`/api/templates/${edT.store}/${encodeURIComponent(edT.name)}/delete`, {method:'POST'});
+    $('#edcard').hidden = true; edT = null;
+    renderTemplates();
+  } catch (e) { $('#edmsg').textContent = e.message; }
+  b.disabled = false;
 };
 $('#edprev').onclick = async () => {
   $('#edmsg').textContent = 'Rendering…';

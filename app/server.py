@@ -164,6 +164,26 @@ def save_template(store, name):
     return jsonify(get_template(s, store, name).to_dict())
 
 
+@app.post("/api/templates/<store>/<name>/delete")
+def delete_template_route(store, name):
+    # POST, not the DELETE verb: the NESA admin reverse proxy only forwards
+    # GET/POST/PUT, and this must work both locally and behind that proxy.
+    s = load_settings()
+    try:
+        st = s.store(store)
+    except Exception as e:
+        return err(e, 404)
+    log: list = []
+    try:
+        from .sources import delete_template
+        result = delete_template(s, st, name, log.append)
+    except FileNotFoundError as e:
+        return err(e, 404)
+    except Exception as e:
+        return err(e)
+    return jsonify({"ok": True, "log": log, **result})
+
+
 @app.post("/api/templates/<store>/<name>/preview")
 def preview(store, name):
     from PIL import Image

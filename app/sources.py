@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 from .config import Settings, Store
-from .templates import IMAGE_EXTS, natural_key, normalize_template
+from .templates import IMAGE_EXTS, calibration_file, natural_key, normalize_template
 
 Log = Callable[[str], None]
 
@@ -177,3 +177,42 @@ def sync_templates(settings: Settings, store: Store, log: Log) -> int:
     manifest_f.write_text(json.dumps(manifest, indent=1))
     log(f"{store.code}: {len(remote)} templates on Drive, {changed} updated")
     return changed
+
+
+def delete_template(settings: Settings, store: Store, name: str, log: Log) -> dict:
+    """Remove a blank template everywhere it lives.
+
+    Drive (Bos Mockuplar) is the source of truth — sync_templates mirrors it, so a
+    local-only delete would come straight back on the next sync. Order matters:
+    trash the Drive original(s) FIRST; if that fails, nothing local is touched, so
+    the user sees the error instead of a template that quietly resurrects.
+    The local name is normalized to <stem>.png, so every Drive image sharing the
+    stem (any extension, trailing spaces tolerated) is trashed — same collapsing
+    rule the sync uses. Drive trash keeps the file recoverable for ~30 days.
+    """
+    dest_dir = settings.store_templates_dir(store.code)
+    local = dest_dir / name
+    if local.parent != dest_dir or not local.exists():
+        raise FileNotFoundError(f"Template not found: {store.code}/{name}")
+    stem = Path(name).stem
+    trashed = 0
+    if store.templates_folder_id:
+        client = drive_client(settings)
+        for f in client.list_images(store.templates_folder_id):
+            if Path(f["name"].strip()).stem == stem:
+                client.trash(f["id"])
+                trashed += 1
+                log(f"{store.code}: moved {f['name']} to the Drive trash")
+        if not trashed:
+            log(f"{store.code}: {stem} not found in Drive (already removed there)")
+    local.unlink()
+    cal = calibration_file(store.code, name)
+    if cal.exists():
+        cal.unlink()
+    manifest_f = dest_dir / ".manifest.json"
+    if manifest_f.exists():
+        manifest = json.loads(manifest_f.read_text())
+        if manifest.pop(name, None) is not None:
+            manifest_f.write_text(json.dumps(manifest, indent=1))
+    log(f"{store.code}: deleted template {name}")
+    return {"deleted": name, "trashed_on_drive": trashed}

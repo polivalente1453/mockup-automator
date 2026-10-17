@@ -90,6 +90,11 @@ class DriveClient:
                 _, done = dl.next_chunk()
         tmp.replace(dest)
 
+    def trash(self, file_id: str) -> None:
+        """Move a file to the Drive trash (recoverable there for ~30 days, unlike a hard delete)."""
+        self.svc.files().update(fileId=file_id, body={"trashed": True}, fields="id",
+                                supportsAllDrives=True).execute()
+
     def upload(self, path: Path, parent_id: str, name: Optional[str] = None) -> str:
         """Upload, replacing a file with the same name in that folder (so re-runs don't duplicate)."""
         from googleapiclient.http import MediaFileUpload
