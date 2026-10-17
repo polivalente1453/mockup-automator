@@ -49,7 +49,9 @@
   .tpl { border:1px solid var(--line); border-radius:8px; padding:6px; cursor:pointer; background:#fff; }
   .tpl.sel { outline:2px solid var(--accent); }
   .tpl img { width:100%; aspect-ratio:3/2; object-fit:cover; border-radius:5px; display:block; background:var(--bg); }
-  .tpl div { display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:12px; }
+  .tpl div { display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:12px; gap:4px; }
+  .tpl .tdel { border:0; background:none; color:var(--muted); cursor:pointer; font-size:14px; line-height:1; padding:2px 5px; border-radius:4px; }
+  .tpl .tdel:hover { color:var(--err); background:#fdf3f2; }
   #editor { position:relative; user-select:none; }
   #editor img { width:100%; display:block; border-radius:6px; }
   #editor svg { position:absolute; inset:0; width:100%; height:100%; }
@@ -312,9 +314,12 @@ async function renderTemplates() {
   const st = CFG.stores.find(s => s.code === $('#tstore').value) || CFG.stores[0];
   $('#tpls').innerHTML = st.templates.length ? st.templates.map(t => `
     <div class="tpl" data-name="${esc(t.name)}"><img loading="lazy" src="${BASE}/files/template/${esc(st.code)}/${encodeURIComponent(t.name)}">
-    <div><span>${esc(t.name)}</span><span class="pill ${t.status === 'ready' ? 'ok' : 'bad'}">${t.status === 'ready' ? t.mode : 'set corners'}</span></div></div>`).join('')
+    <div><span>${esc(t.name)}</span><span style="display:flex;align-items:center;gap:2px"><span class="pill ${t.status === 'ready' ? 'ok' : 'bad'}">${t.status === 'ready' ? t.mode : 'set corners'}</span><button class="tdel" title="Delete this mockup">✕</button></span></div></div>`).join('')
     : '<p class="muted">No templates yet. Click <b>Sync from Drive</b>.</p>';
-  document.querySelectorAll('.tpl').forEach(el => el.onclick = () => openEditor(st.code, st.templates.find(t => t.name === el.dataset.name)));
+  document.querySelectorAll('.tpl').forEach(el => {
+    el.onclick = () => openEditor(st.code, st.templates.find(t => t.name === el.dataset.name));
+    el.querySelector('.tdel').onclick = e => { e.stopPropagation(); deleteTemplate(st.code, el.dataset.name); };
+  });
 }
 
 function openEditor(store, t) {
@@ -361,14 +366,17 @@ $('#edsave').onclick = async () => {
     $('#edmsg').textContent = 'Saved.'; renderTemplates();
   } catch (e) { $('#edmsg').textContent = e.message; }
 };
-$('#eddel').onclick = async () => {
-  if (!confirm(`Delete ${edT.store} / ${edT.name}?\n\nThis also moves the blank in Drive (Bos Mockuplar) to the Drive trash so it won't come back on the next sync. You can restore it from the Drive trash for 30 days.`)) return;
-  const b = $('#eddel'); b.disabled = true; $('#edmsg').textContent = 'Deleting…';
+async function deleteTemplate(store, name) {
+  if (!confirm(`Delete ${store} / ${name}?\n\nThis also moves the blank in Drive (Bos Mockuplar) to the Drive trash so it won't come back on the next sync. You can restore it from the Drive trash for 30 days.`)) return;
   try {
-    await api(`/api/templates/${edT.store}/${encodeURIComponent(edT.name)}/delete`, {method:'POST'});
-    $('#edcard').hidden = true; edT = null;
+    await api(`/api/templates/${store}/${encodeURIComponent(name)}/delete`, {method:'POST'});
+    if (edT && edT.store === store && edT.name === name) { $('#edcard').hidden = true; edT = null; }
     renderTemplates();
-  } catch (e) { $('#edmsg').textContent = e.message; }
+  } catch (e) { alert(`Could not delete ${name}: ${e.message}`); }
+}
+$('#eddel').onclick = async () => {
+  const b = $('#eddel'); b.disabled = true;
+  await deleteTemplate(edT.store, edT.name);
   b.disabled = false;
 };
 $('#edprev').onclick = async () => {
